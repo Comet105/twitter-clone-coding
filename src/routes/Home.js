@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { dbService } from "../fbase";
+import { dbService, storageService } from "../fbase";
+import { ref, uploadString } from "@firebase/storage";
 import {
   addDoc,
   collection,
@@ -7,11 +8,13 @@ import {
   query,
   orderBy,
 } from "firebase/firestore";
+import Tweet from "../components/Tweet";
+import { v4 } from "uuid";
 
 function Home({ userObj }) {
   const [tweet, setTweet] = useState("");
-
   const [tweets, setTweets] = useState([]);
+  const [attachment, setAttachment] = useState();
 
   useEffect(() => {
     const q = query(
@@ -30,17 +33,20 @@ function Home({ userObj }) {
 
   const onSubmit = async (event) => {
     event.preventDefault();
-    try {
-      const docRef = await addDoc(collection(dbService, "tweets"), {
-        text: tweet,
-        createAt: Date.now(),
-        creatorId: userObj.uid,
-      });
-      console.log("Document written with ID:", docRef.id);
-    } catch (error) {
-      console.error("Error adding document:", error);
-    }
-    setTweet("");
+    const fileRef = ref(storageService, `${userObj.uid}/${v4()}`);
+    const response = await uploadString(fileRef, attachment, "data_url");
+    console.log(response);
+    // try {
+    //   const docRef = await addDoc(collection(dbService, "tweets"), {
+    //     text: tweet,
+    //     createAt: Date.now(),
+    //     creatorId: userObj.uid,
+    //   });
+    //   console.log("Document written with ID:", docRef.id);
+    // } catch (error) {
+    //   console.error("Error adding document:", error);
+    // }
+    // setTweet("");
   };
 
   const onChange = (event) => {
@@ -49,6 +55,22 @@ function Home({ userObj }) {
     } = event;
     setTweet(value);
   };
+
+  const onFileChange = (event) => {
+    const {
+      target: { files },
+    } = event;
+    const theFile = files[0];
+    const reader = new FileReader();
+    reader.onloadend = (finishedEvent) => {
+      const {
+        currentTarget: { result },
+      } = finishedEvent;
+      setAttachment(result);
+    };
+    reader.readAsDataURL(theFile);
+  };
+  const onClearAttachment = () => setAttachment(null);
 
   return (
     <div>
@@ -60,13 +82,22 @@ function Home({ userObj }) {
           placeholder="What's on your mind?"
           maxLength={120}
         />
+        <input type="file" accept="image/*" onChange={onFileChange} />
         <input type="submit" value="Tweet" />
+        {attachment && (
+          <div>
+            <img src={attachment} width="50px" height="50px" />
+            <button onClick={onClearAttachment}>Clear</button>
+          </div>
+        )}
       </form>
       <div>
         {tweets.map((tweet) => (
-          <div key={tweet.id}>
-            <h4>{tweet.text}</h4>
-          </div>
+          <Tweet
+            key={tweet.id}
+            tweetObj={tweet}
+            isOwner={tweet.creatorId === userObj.uid}
+          />
         ))}
       </div>
     </div>
