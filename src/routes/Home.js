@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { dbService, storageService } from "../fbase";
-import { ref, uploadString } from "@firebase/storage";
+import { dbService, storage } from "../fbase";
+import { ref, uploadString, getDownloadURL } from "@firebase/storage";
 import {
   addDoc,
   collection,
@@ -14,7 +14,7 @@ import { v4 } from "uuid";
 function Home({ userObj }) {
   const [tweet, setTweet] = useState("");
   const [tweets, setTweets] = useState([]);
-  const [attachment, setAttachment] = useState();
+  const [attachment, setAttachment] = useState("");
 
   useEffect(() => {
     const q = query(
@@ -33,20 +33,23 @@ function Home({ userObj }) {
 
   const onSubmit = async (event) => {
     event.preventDefault();
-    const fileRef = ref(storageService, `${userObj.uid}/${v4()}`);
-    const response = await uploadString(fileRef, attachment, "data_url");
-    console.log(response);
-    // try {
-    //   const docRef = await addDoc(collection(dbService, "tweets"), {
-    //     text: tweet,
-    //     createAt: Date.now(),
-    //     creatorId: userObj.uid,
-    //   });
-    //   console.log("Document written with ID:", docRef.id);
-    // } catch (error) {
-    //   console.error("Error adding document:", error);
-    // }
-    // setTweet("");
+    let attachmentUrl = "";
+    if (attachment !== "") {
+      const fileRef = ref(storage, `${userObj.uid}/${v4()}`);
+      const uploadFile = await uploadString(fileRef, attachment, "data_url");
+      console.log(uploadFile);
+      attachmentUrl = await getDownloadURL(uploadFile.ref);
+    }
+
+    const tweetPosting = {
+      tweet,
+      createAt: Date.now(),
+      creatorId: userObj.uid,
+      attachmentUrl,
+    };
+    await addDoc(collection(dbService, "tweets"), tweetPosting);
+    setTweet("");
+    setAttachment("");
   };
 
   const onChange = (event) => {
@@ -70,7 +73,10 @@ function Home({ userObj }) {
     };
     reader.readAsDataURL(theFile);
   };
-  const onClearAttachment = () => setAttachment(null);
+
+  const onClearAttachment = () => {
+    setAttachment("");
+  };
 
   return (
     <div>
