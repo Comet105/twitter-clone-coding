@@ -4,10 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { updateProfile } from "firebase/auth";
 
 const Profile = ({ refreshUser, userObj }) => {
-  if (userObj.displayName === null) {
-    const name = userObj.email.split("@")[0];
-    userObj.displayName = name;
-  }
   const navigate = useNavigate();
   const [newDisplayName, setNewDisplayName] = useState(userObj.displayName);
   const onLogOutClick = () => {
